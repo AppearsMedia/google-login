@@ -1,34 +1,47 @@
-import React, { useEffect, useState } from 'react';
-import { jwtDecode } from "jwt-decode";
-import { GoogleOAuthProvider } from '@react-oauth/google';
-import { GoogleLogin } from '@react-oauth/google';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import {jwtDecode} from 'jwt-decode';
+import Cookies from 'js-cookie';
+import LoginPage from './components/LoginPage';
+import ProtectedPage from './components/ProtectedPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import { setUser } from './redux/userSlice';
 
 const App = () => {
+  const dispatch = useDispatch();
 
-  const [user, setUser] = useState({})
+  useEffect(() => {
+    const token = Cookies.get('jwtToken');
+    if (token) {
+      try {
+        const userObject = jwtDecode(token);
+        const currentTime = Date.now() / 1000;
 
-
-  const handleCallbackResponse = (token) => {
-    console.log(token);
-    let userObject = jwtDecode(token)
-
-    // setUser(userObject)
-    console.log(userObject)
-  };
-
+        if (userObject.exp > currentTime) {
+          dispatch(setUser(userObject));
+        } else {
+          Cookies.remove('jwtToken');
+        }
+      } catch (error) {
+        console.error('Invalid token:', error);
+      }
+    }
+  }, [dispatch]);
 
   return (
-    <GoogleOAuthProvider clientId="592014387547-4ignro9ukodcue88pchph53c0v02ne9t.apps.googleusercontent.com">
-      <h1>Login button</h1>
-      <GoogleLogin
-        onSuccess={credentialResponse => {
-          handleCallbackResponse(credentialResponse.credential);
-        }}
-        onError={() => {
-          console.log('Login Failed');
-        }}
-      />;
-    </GoogleOAuthProvider>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route 
+        path="/protected" 
+        element={
+          <ProtectedRoute>
+            <ProtectedPage />
+          </ProtectedRoute>
+        } 
+      />
+      <Route path="*" element={<Navigate to="/login" />} />
+    </Routes>
   );
 };
 
